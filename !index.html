@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline Streaming App</title>
+    <style>
+        /* Styling remains the same */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: #00ff00;
+            margin-top: 20px;
+        }
+
+        #searchBar {
+            width: 80%;
+            padding: 10px;
+            font-size: 18px;
+            margin: 20px auto;
+            border: 2px solid #00ff00;
+            border-radius: 5px;
+            background-color: #000;
+            color: #fff;
+        }
+
+        #videoList {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            padding: 10px;
+        }
+
+        .video-item {
+            width: 200px;
+            background-color: #222;
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            text-align: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .video-item img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            cursor: pointer;
+            border-bottom: 2px solid #00ff00;
+        }
+
+        .video-item p {
+            margin: 10px 0;
+        }
+
+        .video-item button {
+            background-color: #00ff00;
+            color: #000;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 14px;
+            border-radius: 5px;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+
+        .video-item button:hover {
+            background-color: #007f00;
+        }
+
+        #addForm {
+            margin: 20px 0;
+            padding: 20px;
+            background-color: #222;
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 500px;
+        }
+
+        #addForm input, #addForm button {
+            display: block;
+            margin: 10px auto;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        #addForm input {
+            width: 100%;
+            border: 2px solid #00ff00;
+            border-radius: 5px;
+            background-color: #000;
+            color: #fff;
+        }
+
+        #addForm button {
+            background-color: #00ff00;
+            color: #000;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        #addForm button:hover {
+            background-color: #007f00;
+        }
+
+        #videoPlayer {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        #videoPlayer video {
+            width: 80%;
+            max-height: 80%;
+            outline: none;
+        }
+
+        #videoPlayer button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 18px;
+            background-color: #00ff00;
+            color: #000;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        #videoPlayer button:hover {
+            background-color: #007f00;
+        }
+
+        video::-webkit-media-controls-progress-value {
+            background-color: #00ff00;
+        }
+    </style>
+</head>
+<body>
+    <h1>Offline Streaming App</h1>
+    <input type="text" id="searchBar" placeholder="Search for a video..." />
+
+    <div id="videoList"></div>
+
+    <div id="addForm">
+        <h2 style="color: #00ff00;">Add New Video</h2>
+        <input type="text" id="videoName" placeholder="Video Name" />
+        <input type="file" id="videoThumbnail" accept="image/*" />
+        <input type="file" id="videoFile" accept="video/*" />
+        <button onclick="addVideo()">Add Video</button>
+    </div>
+
+    <div id="videoPlayer">
+        <video controls></video>
+        <button onclick="closePlayer()">Close</button>
+    </div>
+
+    <script>
+        const videoList = document.getElementById('videoList');
+        const searchBar = document.getElementById('searchBar');
+        const videoPlayer = document.getElementById('videoPlayer');
+        const videoElement = videoPlayer.querySelector('video');
+
+        const videos = JSON.parse(localStorage.getItem('videos')) || [];
+
+        function addVideo() {
+            const name = document.getElementById('videoName').value;
+            const thumbnail = document.getElementById('videoThumbnail').files[0];
+            const video = document.getElementById('videoFile').files[0];
+
+            if (!name || !thumbnail || !video) {
+                alert('Please provide all details (name, thumbnail, and video)!');
+                return;
+            }
+
+            const readerThumbnail = new FileReader();
+            const readerVideo = new FileReader();
+
+            readerThumbnail.onload = function (thumbnailEvent) {
+                readerVideo.onload = function (videoEvent) {
+                    const thumbnailURL = thumbnailEvent.target.result;
+                    const videoData = videoEvent.target.result;
+
+                    videos.push({ name, thumbnailURL, videoData });
+                    saveVideos();
+                    displayVideos();
+                };
+                readerVideo.readAsDataURL(video);
+            };
+            readerThumbnail.readAsDataURL(thumbnail);
+
+            document.getElementById('videoName').value = '';
+            document.getElementById('videoThumbnail').value = '';
+            document.getElementById('videoFile').value = '';
+        }
+
+        function saveVideos() {
+            localStorage.setItem('videos', JSON.stringify(videos));
+        }
+
+        function displayVideos() {
+            videoList.innerHTML = '';
+            videos.forEach((video, index) => {
+                const videoItem = document.createElement('div');
+                videoItem.className = 'video-item';
+                videoItem.innerHTML = `
+                    <img src="${video.thumbnailURL}" alt="${video.name}" onclick="playVideo(${index})"/>
+                    <p>${video.name}</p>
+                    <button onclick="deleteVideo(${index})">Delete</button>
+                `;
+                videoList.appendChild(videoItem);
+            });
+        }
+
+        function playVideo(index) {
+            const video = videos[index];
+            videoElement.src = video.videoData;
+            videoPlayer.style.display = 'flex';
+            videoElement.play();
+        }
+
+        function closePlayer() {
+            videoPlayer.style.display = 'none';
+            videoElement.pause();
+        }
+
+        function deleteVideo(index) {
+            videos.splice(index, 1);
+            saveVideos();
+            displayVideos();
+        }
+
+        searchBar.addEventListener('input', () => {
+            const query = searchBar.value.toLowerCase();
+            const filteredVideos = videos.filter(video =>
+                video.name.toLowerCase().includes(query)
+            );
+
+            videoList.innerHTML = '';
+            filteredVideos.forEach((video, index) => {
+                const videoItem = document.createElement('div');
+                videoItem.className = 'video-item';
+                videoItem.innerHTML = `
+                    <img src="${video.thumbnailURL}" alt="${video.name}" onclick="playVideo(${index})"/>
+                    <p>${video.name}</p>
+                    <button onclick="deleteVideo(${index})">Delete</button>
+                `;
+                videoList.appendChild(videoItem);
+            });
+        });
+
+        window.onload = displayVideos;
+    </script>
+</body>
+</html>
